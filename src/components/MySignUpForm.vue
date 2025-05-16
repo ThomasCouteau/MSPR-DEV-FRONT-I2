@@ -1,7 +1,32 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { ref } from 'vue'
+import { useToast } from 'vue-toast-notification'
+import 'vue-toast-notification/dist/theme-sugar.css'
 
 const router = useRouter()
+
+const user = ref({
+  email: '',
+  password: '',
+})
+
+const toast = useToast()
+
+const successToast = () => {
+  toast.success('Sign up successful!', {
+    position: 'top-right',
+    duration: 3000,
+    dismissible: true,
+    pauseOnHover: true,
+  })
+}
+
+const handleSubmit = async () => {
+  successToast()
+  console.log('Sign up in with:', user.value)
+  router.push('/')
+}
 </script>
 
 <template>
@@ -18,7 +43,7 @@ const router = useRouter()
     </div>
 
     <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-      <form class="space-y-6" action="#" method="POST">
+      <form class="space-y-6" action="#" method="POST" @submit.prevent="handleSubmit">
         <div>
           <label for="email" class="block text-sm/6 font-medium text-gray-900">Email address</label>
           <div class="mt-2">

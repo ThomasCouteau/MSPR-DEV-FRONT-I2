@@ -1,7 +1,31 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
+import { ref } from 'vue'
+import { useToast } from 'vue-toast-notification'
+import 'vue-toast-notification/dist/theme-sugar.css'
 
 const router = useRouter()
+
+const user = ref({
+  email: '',
+  password: '',
+})
+
+const toast = useToast()
+
+const successToast = () => {
+  toast.success('Login successful!', {
+    position: 'top-right',
+    duration: 3000,
+    dismissible: true,
+    pauseOnHover: true,
+  })
+}
+
+const handleSubmit = async () => {
+  successToast()
+  console.log('Logging in with:', user.value)
+}
 </script>
 
 <template>
@@ -18,11 +42,12 @@ const router = useRouter()
     </div>
 
     <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
-      <form class="space-y-6" action="#" method="POST">
+      <form class="space-y-6" action="#" method="POST" @submit.prevent="handleSubmit">
         <div>
           <label for="email" class="block text-sm/6 font-medium text-gray-900">Email address</label>
           <div class="mt-2">
             <input
+              v-model="user.email"
               type="email"
               name="email"
               id="email"
@@ -44,6 +69,7 @@ const router = useRouter()
           </div>
           <div class="mt-2">
             <input
+              v-model="user.password"
               type="password"
               name="password"
               id="password"
@@ -66,7 +92,11 @@ const router = useRouter()
 
       <p class="mt-10 text-center text-sm/6 text-gray-500">
         Not a member ?
-        <a href="#" @click="router.push('/signup')" class="font-semibold text-indigo-600 hover:text-indigo-500">
+        <a
+          href="#"
+          @click="router.push('/signup')"
+          class="font-semibold text-indigo-600 hover:text-indigo-500"
+        >
           Create your account
         </a>
       </p>
