@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useToast } from 'vue-toast-notification'
 import 'vue-toast-notification/dist/theme-sugar.css'
 import TotpCode from '@/components/TotpCode.vue'
@@ -56,6 +56,10 @@ const handleSubmit = async () => {
     })
   }
 }
+
+const formIsValid = computed(() => {
+  return user.value.email && user.value.password && user.value.totpCode.length === 6
+})
 </script>
 
 <template>
@@ -121,8 +125,9 @@ const handleSubmit = async () => {
 
         <div>
           <button
+            :disabled="!formIsValid"
             type="submit"
-            class="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600"
+            class="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             Sign in
           </button>
