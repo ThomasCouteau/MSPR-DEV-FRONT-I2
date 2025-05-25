@@ -24,12 +24,17 @@ const successToast = () => {
   })
 }
 
+const formIsValid = computed(() => {
+  return user.value.email.trim() !== '' && user.value.password.trim() !== '' && user.value.totpCode.length === 6
+})
+
 const handleTotpUpdate = (code: string) => {
   user.value.totpCode = code
 }
 
 const handleTotpComplete = (code: string) => {
   user.value.totpCode = code
+  console.log('Code TOTP complet:', code)
   // Optionnel: auto-submit du formulaire quand le code est complet
 }
 
@@ -42,6 +47,7 @@ const handleSubmit = async () => {
     return
   }
 
+  console.log('Logging in with:', user.value)
 
   try {
     // Ici vous appellerez votre fonction OpenFaaS d'authentification
@@ -56,10 +62,6 @@ const handleSubmit = async () => {
     })
   }
 }
-
-const formIsValid = computed(() => {
-  return user.value.email && user.value.password && user.value.totpCode.length === 6
-})
 </script>
 
 <template>
@@ -138,7 +140,7 @@ const formIsValid = computed(() => {
         Not a member ?
         <a
           href="#"
-          @click="router.push('/signup')"
+          @click="router.push({ name: 'signup' })"
           class="font-semibold text-indigo-600 hover:text-indigo-500"
         >
           Create your account

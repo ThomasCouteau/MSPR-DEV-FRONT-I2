@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRouter } from 'vue-router'
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import { useToast } from 'vue-toast-notification'
 import 'vue-toast-notification/dist/theme-sugar.css'
 
@@ -29,10 +29,6 @@ const errorToast = (message: string) => {
     dismissible: true,
   })
 }
-
-const usernameIsValid = computed(() => {
-  return user.value.username.trim().length >= 3
-})
 
 const handleSubmit = async () => {
   if (!user.value.username.trim()) {
@@ -80,6 +76,7 @@ const handleSubmit = async () => {
   }
 }
 
+// Fonctions pour appeler les API OpenFaaS
 const generatePassword = async (username: string) => {
   try {
     const response = await fetch('/function/generate-password', {
@@ -190,7 +187,7 @@ const generate2FA = async (username: string) => {
         <div>
           <button
             type="submit"
-            :disabled="isLoading || !usernameIsValid"
+            :disabled="isLoading || !user.username.trim()"
             class="flex w-full justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             <span v-if="isLoading" class="flex items-center">
@@ -210,7 +207,7 @@ const generate2FA = async (username: string) => {
         {{ ' ' }}
         <a
           href="#"
-          @click="router.push('/')"
+          @click="router.push({ name: 'login' })"
           class="font-semibold text-indigo-600 hover:text-indigo-500"
         >
           Sign in
