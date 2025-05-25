@@ -2,49 +2,105 @@
 import { useRoute, useRouter } from 'vue-router'
 import { ref, onMounted } from 'vue'
 import { useToast } from 'vue-toast-notification'
+import QRCode from 'qrcode'
 
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
 
 // Données mockées pour le développement frontend
-const mockData = ref({
+const mockCredentials = {
   username: 'john.doe',
-  passwordQR: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', // Mock base64
-  totpQR: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==', // Mock base64
-  generatedPassword: 'Abc123!@#XyzQwerty789$%^'
-})
+  password: 'Abc123!@#XyzQwerty789$%^&*',
+  totpSecret: 'JBSWY3DPEHPK3PXP', // Secret TOTP en Base32
+  issuer: 'COFRAP'
+}
 
 const qrData = ref({
   username: '',
   passwordQR: '',
   totpQR: '',
-  generatedPassword: ''
+  generatedPassword: '',
+  isLoading: true
 })
 
 const showPassword = ref(false)
 const step = ref(1) // 1: Password QR, 2: 2FA QR, 3: Instructions
 
-onMounted(() => {
-  // En production, récupérer les données de la query ou du store
-  const username = route.query.username as string
-  const passwordQR = route.query.passwordQR as string
-  const totpQR = route.query.totpQR as string
+// Générer les QR codes
+const generateQRCodes = async (username: string, password: string, totpSecret: string) => {
+  try {
+    // QR code pour le mot de passe (simple texte)
+    const passwordQR = await QRCode.toDataURL(password, {
+      width: 256,
+      margin: 2,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    })
 
-  if (username && passwordQR && totpQR) {
+    // QR code pour TOTP (format URI standard)
+    const totpUri = `otpauth://totp/${encodeURIComponent(mockCredentials.issuer)}:${encodeURIComponent(username)}?secret=${totpSecret}&issuer=${encodeURIComponent(mockCredentials.issuer)}&algorithm=SHA1&digits=6&period=30`
+
+    const totpQR = await QRCode.toDataURL(totpUri, {
+      width: 256,
+      margin: 2,
+      color: {
+        dark: '#000000',
+        light: '#FFFFFF'
+      }
+    })
+
+    return { passwordQR, totpQR }
+  } catch (error) {
+    console.error('Erreur génération QR codes:', error)
+    throw error
+  }
+}
+
+onMounted(async () => {
+  try {
+    // En production, récupérer les données des props de route ou API
+    const username = (route.query.username as string) || mockCredentials.username
+    const isRenewal = route.query.renewed === 'true'
+
+    if (isRenewal) {
+      toast.info('Renouvellement des identifiants - Données simulées', {
+        position: 'top-right',
+        duration: 3000,
+      })
+    }
+
+    // Générer les QR codes
+    const { passwordQR, totpQR } = await generateQRCodes(
+      username,
+      mockCredentials.password,
+      mockCredentials.totpSecret
+    )
+
     qrData.value = {
       username,
       passwordQR,
       totpQR,
-      generatedPassword: '' // Le mot de passe ne sera pas transmis en query pour sécurité
+      generatedPassword: mockCredentials.password,
+      isLoading: false
     }
-  } else {
-    // Mode développement avec données mockées
-    qrData.value = mockData.value
-    toast.info('Mode développement - Données simulées', {
+
+    if (!route.query.username) {
+      toast.info('Mode développement - QR codes générés localement', {
+        position: 'top-right',
+        duration: 3000,
+      })
+    }
+
+  } catch (error) {
+    console.error('Erreur lors de l\'initialisation:', error)
+    toast.error('Erreur lors de la génération des QR codes', {
       position: 'top-right',
-      duration: 3000,
+      duration: 4000,
     })
+    qrData.value.isLoading = false
   }
 })
 
@@ -69,11 +125,48 @@ const completeSetup = () => {
   router.push({ name: 'login' })
 }
 
-const regenerateCredentials = () => {
-  toast.info('Feature will be available when OpenFaaS functions are ready', {
-    position: 'top-right',
-    duration: 3000,
-  })
+const regenerateCredentials = async () => {
+  try {
+    qrData.value.isLoading = true
+    toast.info('Génération de nouveaux QR codes...', {
+      position: 'top-right',
+      duration: 2000,
+    })
+
+    // Simuler une nouvelle génération (en attendant les fonctions OpenFaaS)
+    await new Promise(resolve => setTimeout(resolve, 1500))
+
+    // Générer de nouveaux QR codes
+    const newPassword = 'NewPass123!@#XyzAbc789$%^&*'
+    const newTotpSecret = 'KBZXE4LGNFRWQZDI' // Nouveau secret TOTP
+
+    const { passwordQR, totpQR } = await generateQRCodes(
+      qrData.value.username,
+      newPassword,
+      newTotpSecret
+    )
+
+    qrData.value.passwordQR = passwordQR
+    qrData.value.totpQR = totpQR
+    qrData.value.generatedPassword = newPassword
+    qrData.value.isLoading = false
+
+    // Reset à l'étape 1
+    step.value = 1
+
+    toast.success('Nouveaux QR codes générés avec succès!', {
+      position: 'top-right',
+      duration: 3000,
+    })
+
+  } catch (error) {
+    console.error('Erreur régénération:', error)
+    toast.error('Erreur lors de la régénération', {
+      position: 'top-right',
+      duration: 3000,
+    })
+    qrData.value.isLoading = false
+  }
 }
 </script>
 
@@ -95,6 +188,19 @@ const regenerateCredentials = () => {
     </div>
 
     <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-2xl">
+      <!-- Loading State -->
+      <div v-if="qrData.isLoading" class="text-center py-12">
+        <div class="inline-flex items-center px-4 py-2 font-semibold leading-6 text-sm shadow rounded-md text-white bg-indigo-500">
+          <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          Generating QR Codes...
+        </div>
+      </div>
+
+      <!-- QR Setup Content -->
+      <div v-else>
       <!-- Progress indicator -->
       <div class="mb-8">
         <div class="flex items-center justify-between text-sm font-medium text-gray-500">
@@ -136,8 +242,8 @@ const regenerateCredentials = () => {
                 {{ showPassword ? 'Hide' : 'Show' }}
               </button>
             </div>
-            <div class="mt-2 font-mono text-sm">
-              {{ showPassword ? mockData.generatedPassword : '••••••••••••••••••••••••' }}
+            <div class="mt-2 font-mono text-sm break-all">
+              {{ showPassword ? qrData.generatedPassword : '••••••••••••••••••••••••' }}
             </div>
           </div>
 
@@ -231,6 +337,7 @@ const regenerateCredentials = () => {
             </button>
           </div>
         </div>
+              </div>
       </div>
     </div>
   </div>

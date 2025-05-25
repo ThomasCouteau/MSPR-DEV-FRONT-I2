@@ -47,26 +47,26 @@ const handleSubmit = async () => {
     console.log('Creating account for:', user.value.username)
 
     // Étape 1: Générer le mot de passe
-    const passwordResponse = await generatePassword(user.value.username)
+    //const passwordResponse = await generatePassword(user.value.username)
 
     // Étape 2: Générer le secret 2FA
-    const totpResponse = await generate2FA(user.value.username)
+    //const totpResponse = await generate2FA(user.value.username)
 
-    if (passwordResponse.success && totpResponse.success) {
+    //if (passwordResponse.success && totpResponse.success) {
       successToast()
 
       // Rediriger vers la page d'affichage des QR codes avec les données
       router.push({
         name: 'qr-setup',
-        query: {
-          username: user.value.username,
-          passwordQR: passwordResponse.qrcode_base64,
-          totpQR: totpResponse.qrcode_base64
-        }
+        //query: {
+        //   username: user.value.username,
+        //   passwordQR: passwordResponse.qrcode_base64,
+        //   totpQR: totpResponse.qrcode_base64
+        // }
       })
-    } else {
-      throw new Error('Failed to generate credentials')
-    }
+    //} else {
+      //throw new Error('Failed to generate credentials')
+    //}
 
   } catch (error) {
     console.error('Error creating account:', error)
