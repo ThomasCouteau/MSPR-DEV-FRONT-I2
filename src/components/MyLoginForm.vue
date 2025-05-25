@@ -3,12 +3,14 @@ import { useRouter } from 'vue-router'
 import { ref } from 'vue'
 import { useToast } from 'vue-toast-notification'
 import 'vue-toast-notification/dist/theme-sugar.css'
+import TotpCode from '@/components/TotpCode.vue'
 
 const router = useRouter()
 
 const user = ref({
   email: '',
   password: '',
+  totpCode: ''
 })
 
 const toast = useToast()
@@ -22,9 +24,37 @@ const successToast = () => {
   })
 }
 
+const handleTotpUpdate = (code: string) => {
+  user.value.totpCode = code
+}
+
+const handleTotpComplete = (code: string) => {
+  user.value.totpCode = code
+  // Optionnel: auto-submit du formulaire quand le code est complet
+}
+
 const handleSubmit = async () => {
-  successToast()
-  console.log('Logging in with:', user.value)
+  if (!user.value.totpCode || user.value.totpCode.length !== 6) {
+    toast.error('Veuillez saisir le code 2FA complet', {
+      position: 'top-right',
+      duration: 3000,
+    })
+    return
+  }
+
+
+  try {
+    // Ici vous appellerez votre fonction OpenFaaS d'authentification
+    // const response = await authenticate(user.value.email, user.value.password, user.value.totpCode)
+
+    successToast()
+    // router.push('/dashboard')
+  } catch (error) {
+    toast.error('Erreur de connexion', {
+      position: 'top-right',
+      duration: 3000,
+    })
+  }
 }
 </script>
 
@@ -78,6 +108,15 @@ const handleSubmit = async () => {
               class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
             />
           </div>
+        </div>
+
+        <div>
+          <label class="block text-sm/6 font-medium text-gray-900 mb-2">Code d'authentification (2FA)</label>
+          <TotpCode
+            :model-value="user.totpCode"
+            @update:model-value="handleTotpUpdate"
+            @complete="handleTotpComplete"
+          />
         </div>
 
         <div>
