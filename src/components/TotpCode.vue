@@ -4,7 +4,7 @@
       <input
         v-for="(digit, index) in otp"
         :key="index"
-        :ref="(el) => setInputRef(el, index)"
+        :ref="(el) => setInputRef(el as HTMLInputElement, index)"
         type="text"
         maxlength="1"
         class="block w-12 h-12 rounded-md bg-white px-3 py-1.5 text-center text-base font-medium text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-indigo-600 sm:text-sm/6"
@@ -122,7 +122,6 @@ const handlePaste = (e: ClipboardEvent) => {
       otp[i] = numbers[i] || ''
     }
 
-    const lastFilledIndex = Math.min(numbers.length - 1, otp.length - 1)
     const nextIndex = Math.min(numbers.length, otp.length - 1)
     focusInput(nextIndex)
 
