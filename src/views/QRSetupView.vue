@@ -2,19 +2,11 @@
 import { useRoute, useRouter } from 'vue-router'
 import { ref, onMounted } from 'vue'
 import { useToast } from 'vue-toast-notification'
-import QRCode from 'qrcode'
+import { apiService } from '@/services/api'
 
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
-
-// Données mockées pour le développement frontend
-const mockCredentials = {
-  username: 'john.doe',
-  password: 'Abc123!@#XyzQwerty789$%^&*',
-  totpSecret: 'JBSWY3DPEHPK3PXP', // Secret TOTP en Base32
-  issuer: 'COFRAP'
-}
 
 const qrData = ref({
   username: '',
@@ -27,68 +19,69 @@ const qrData = ref({
 const showPassword = ref(false)
 const step = ref(1) // 1: Password QR, 2: 2FA QR, 3: Instructions
 
-// Générer les QR codes
-const generateQRCodes = async (username: string, password: string, totpSecret: string) => {
-  try {
-    // QR code pour le mot de passe (simple texte)
-    const passwordQR = await QRCode.toDataURL(password, {
-      width: 256,
-      margin: 2,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF'
-      }
-    })
-
-    // QR code pour TOTP (format URI standard)
-    const totpUri = `otpauth://totp/${encodeURIComponent(mockCredentials.issuer)}:${encodeURIComponent(username)}?secret=${totpSecret}&issuer=${encodeURIComponent(mockCredentials.issuer)}&algorithm=SHA1&digits=6&period=30`
-
-    const totpQR = await QRCode.toDataURL(totpUri, {
-      width: 256,
-      margin: 2,
-      color: {
-        dark: '#000000',
-        light: '#FFFFFF'
-      }
-    })
-
-    return { passwordQR, totpQR }
-  } catch (error) {
-    console.error('Erreur génération QR codes:', error)
-    throw error
-  }
-}
-
 onMounted(async () => {
   try {
-    // En production, récupérer les données des props de route ou API
-    const username = (route.query.username as string) || mockCredentials.username
+    const username = (route.query.username as string) || ''
+    const passwordQR = route.query.passwordQR as string
+    const totpQR = route.query.totpQR as string
+    const password = route.query.password as string
     const isRenewal = route.query.renewed === 'true'
 
+    if (!username) {
+      toast.error('Nom d\'utilisateur manquant', {
+        position: 'top-right',
+        duration: 3000,
+      })
+      router.push({ name: 'signup' })
+      return
+    }
+
     if (isRenewal) {
-      toast.info('Renouvellement des identifiants - Données simulées', {
+      toast.info('Renouvellement des identifiants effectué', {
         position: 'top-right',
         duration: 3000,
       })
     }
 
-    // Générer les QR codes
-    const { passwordQR, totpQR } = await generateQRCodes(
-      username,
-      mockCredentials.password,
-      mockCredentials.totpSecret
-    )
+    // Si nous avons les QR codes des query params, les utiliser directement
+    if (passwordQR && totpQR) {
+      qrData.value = {
+        username,
+        passwordQR,
+        totpQR,
+        generatedPassword: password || 'Mot de passe généré (voir QR code)',
+        isLoading: false
+      }
 
-    qrData.value = {
-      username,
-      passwordQR,
-      totpQR,
-      generatedPassword: mockCredentials.password,
-      isLoading: false
-    }
+      toast.success('QR codes générés avec succès!', {
+        position: 'top-right',
+        duration: 3000,
+      })
+    } else {
+      // Sinon, générer de nouveaux QR codes
+      toast.info('Génération des QR codes...', {
+        position: 'top-right',
+        duration: 2000,
+      })
 
-    if (!route.query.username) {
-      toast.info('Mode développement - QR codes générés localement', {
+      const [passwordResponse, totpResponse] = await Promise.all([
+        apiService.generatePassword(username),
+        apiService.generate2FA(username)
+      ])
+
+      if (!passwordResponse.success || !totpResponse.success) {
+        throw new Error('Erreur lors de la génération des QR codes')
+      }
+
+      qrData.value = {
+        username,
+        passwordQR: passwordResponse.qrcode_base64,
+        totpQR: totpResponse.qrcode_base64,
+        generatedPassword: passwordResponse.password,
+        isLoading: false
+      }
+
+      toast.success('QR codes générés avec succès!', {
         position: 'top-right',
         duration: 3000,
       })
@@ -133,22 +126,19 @@ const regenerateCredentials = async () => {
       duration: 2000,
     })
 
-    // Simuler une nouvelle génération (en attendant les fonctions OpenFaaS)
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    // Générer de nouveaux QR codes via l'API
+    const [passwordResponse, totpResponse] = await Promise.all([
+      apiService.generatePassword(qrData.value.username),
+      apiService.generate2FA(qrData.value.username)
+    ])
 
-    // Générer de nouveaux QR codes
-    const newPassword = 'NewPass123!@#XyzAbc789$%^&*'
-    const newTotpSecret = 'KBZXE4LGNFRWQZDI' // Nouveau secret TOTP
+    if (!passwordResponse.success || !totpResponse.success) {
+      throw new Error('Erreur lors de la génération des QR codes')
+    }
 
-    const { passwordQR, totpQR } = await generateQRCodes(
-      qrData.value.username,
-      newPassword,
-      newTotpSecret
-    )
-
-    qrData.value.passwordQR = passwordQR
-    qrData.value.totpQR = totpQR
-    qrData.value.generatedPassword = newPassword
+    qrData.value.passwordQR = passwordResponse.qrcode_base64
+    qrData.value.totpQR = totpResponse.qrcode_base64
+    qrData.value.generatedPassword = passwordResponse.password
     qrData.value.isLoading = false
 
     // Reset à l'étape 1
@@ -201,143 +191,143 @@ const regenerateCredentials = async () => {
 
       <!-- QR Setup Content -->
       <div v-else>
-      <!-- Progress indicator -->
-      <div class="mb-8">
-        <div class="flex items-center justify-between text-sm font-medium text-gray-500">
-          <span :class="step >= 1 ? 'text-indigo-600' : ''">Password</span>
-          <span :class="step >= 2 ? 'text-indigo-600' : ''">2FA Setup</span>
-          <span :class="step >= 3 ? 'text-indigo-600' : ''">Complete</span>
-        </div>
-        <div class="mt-2 h-2 bg-gray-200 rounded-full">
-          <div
-            class="h-2 bg-indigo-600 rounded-full transition-all duration-300"
-            :style="{ width: `${(step / 3) * 100}%` }"
-          ></div>
-        </div>
-      </div>
-
-      <!-- Step 1: Password QR -->
-      <div v-if="step === 1" class="space-y-6">
-        <div class="text-center">
-          <h3 class="text-lg font-medium text-gray-900 mb-4">Step 1: Save Your Password</h3>
-
-          <!-- Password QR Code -->
-          <div class="bg-white p-6 rounded-lg border-2 border-dashed border-gray-300 mb-6">
-            <img
-              :src="qrData.passwordQR"
-              alt="Password QR Code"
-              class="mx-auto w-48 h-48 bg-gray-100 rounded"
-            />
-            <p class="mt-2 text-sm text-gray-500">Scan this QR code to save your password</p>
+        <!-- Progress indicator -->
+        <div class="mb-8">
+          <div class="flex items-center justify-between text-sm font-medium text-gray-500">
+            <span :class="step >= 1 ? 'text-indigo-600' : ''">Password</span>
+            <span :class="step >= 2 ? 'text-indigo-600' : ''">2FA Setup</span>
+            <span :class="step >= 3 ? 'text-indigo-600' : ''">Complete</span>
           </div>
+          <div class="mt-2 h-2 bg-gray-200 rounded-full">
+            <div
+              class="h-2 bg-indigo-600 rounded-full transition-all duration-300"
+              :style="{ width: `${(step / 3) * 100}%` }"
+            ></div>
+          </div>
+        </div>
 
-          <!-- Generated Password (optional display) -->
-          <div class="bg-gray-50 p-4 rounded-lg mb-6">
-            <div class="flex items-center justify-between">
-              <span class="text-sm font-medium text-gray-700">Generated Password:</span>
-              <button
-                @click="showPassword = !showPassword"
-                class="text-sm text-indigo-600 hover:text-indigo-500"
-              >
-                {{ showPassword ? 'Hide' : 'Show' }}
-              </button>
+        <!-- Step 1: Password QR -->
+        <div v-if="step === 1" class="space-y-6">
+          <div class="text-center">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Step 1: Save Your Password</h3>
+
+            <!-- Password QR Code -->
+            <div class="bg-white p-6 rounded-lg border-2 border-dashed border-gray-300 mb-6">
+              <img
+                :src="qrData.passwordQR"
+                alt="Password QR Code"
+                class="mx-auto w-48 h-48 bg-gray-100 rounded"
+              />
+              <p class="mt-2 text-sm text-gray-500">Scan this QR code to save your password</p>
             </div>
-            <div class="mt-2 font-mono text-sm break-all">
-              {{ showPassword ? qrData.generatedPassword : '••••••••••••••••••••••••' }}
+
+            <!-- Generated Password (optional display) -->
+            <div class="bg-gray-50 p-4 rounded-lg mb-6">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-medium text-gray-700">Generated Password:</span>
+                <button
+                  @click="showPassword = !showPassword"
+                  class="text-sm text-indigo-600 hover:text-indigo-500"
+                >
+                  {{ showPassword ? 'Hide' : 'Show' }}
+                </button>
+              </div>
+              <div class="mt-2 font-mono text-sm break-all">
+                {{ showPassword ? qrData.generatedPassword : '••••••••••••••••••••••••' }}
+              </div>
             </div>
-          </div>
 
-          <button
-            @click="nextStep"
-            class="w-full flex justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500"
-          >
-            I've Saved My Password - Continue
-          </button>
-        </div>
-      </div>
-
-      <!-- Step 2: 2FA QR -->
-      <div v-if="step === 2" class="space-y-6">
-        <div class="text-center">
-          <h3 class="text-lg font-medium text-gray-900 mb-4">Step 2: Setup Two-Factor Authentication</h3>
-
-          <!-- 2FA QR Code -->
-          <div class="bg-white p-6 rounded-lg border-2 border-dashed border-gray-300 mb-6">
-            <img
-              :src="qrData.totpQR"
-              alt="2FA QR Code"
-              class="mx-auto w-48 h-48 bg-gray-100 rounded"
-            />
-            <p class="mt-2 text-sm text-gray-500">Scan with Google Authenticator or similar app</p>
-          </div>
-
-          <!-- Instructions -->
-          <div class="bg-blue-50 p-4 rounded-lg mb-6 text-left">
-            <h4 class="font-medium text-blue-900 mb-2">Instructions:</h4>
-            <ol class="list-decimal list-inside text-sm text-blue-800 space-y-1">
-              <li>Install Google Authenticator or similar TOTP app</li>
-              <li>Scan the QR code above</li>
-              <li>Your app will generate 6-digit codes every 30 seconds</li>
-              <li>Use these codes for login authentication</li>
-            </ol>
-          </div>
-
-          <div class="flex space-x-3">
-            <button
-              @click="prevStep"
-              class="flex-1 rounded-md bg-gray-200 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-300"
-            >
-              Back
-            </button>
             <button
               @click="nextStep"
-              class="flex-1 rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500"
+              class="w-full flex justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500"
             >
-              I've Setup 2FA - Continue
+              I've Saved My Password - Continue
             </button>
           </div>
         </div>
-      </div>
 
-      <!-- Step 3: Complete -->
-      <div v-if="step === 3" class="space-y-6">
-        <div class="text-center">
-          <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
-            <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-            </svg>
-          </div>
+        <!-- Step 2: 2FA QR -->
+        <div v-if="step === 2" class="space-y-6">
+          <div class="text-center">
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Step 2: Setup Two-Factor Authentication</h3>
 
-          <h3 class="text-lg font-medium text-gray-900 mb-4">Setup Complete!</h3>
+            <!-- 2FA QR Code -->
+            <div class="bg-white p-6 rounded-lg border-2 border-dashed border-gray-300 mb-6">
+              <img
+                :src="qrData.totpQR"
+                alt="2FA QR Code"
+                class="mx-auto w-48 h-48 bg-gray-100 rounded"
+              />
+              <p class="mt-2 text-sm text-gray-500">Scan with Google Authenticator or similar app</p>
+            </div>
 
-          <div class="bg-green-50 p-4 rounded-lg mb-6">
-            <p class="text-sm text-green-800">
-              Your COFRAP account is now ready. You can now sign in using:
-            </p>
-            <ul class="mt-2 text-sm text-green-700 space-y-1">
-              <li>• Username: <span class="font-medium">{{ qrData.username }}</span></li>
-              <li>• Your saved password</li>
-              <li>• 6-digit code from your authenticator app</li>
-            </ul>
-          </div>
+            <!-- Instructions -->
+            <div class="bg-blue-50 p-4 rounded-lg mb-6 text-left">
+              <h4 class="font-medium text-blue-900 mb-2">Instructions:</h4>
+              <ol class="list-decimal list-inside text-sm text-blue-800 space-y-1">
+                <li>Install Google Authenticator or similar TOTP app</li>
+                <li>Scan the QR code above</li>
+                <li>Your app will generate 6-digit codes every 30 seconds</li>
+                <li>Use these codes for login authentication</li>
+              </ol>
+            </div>
 
-          <div class="space-y-3">
-            <button
-              @click="completeSetup"
-              class="w-full flex justify-center rounded-md bg-green-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-green-500"
-            >
-              Go to Login
-            </button>
-
-            <button
-              @click="regenerateCredentials"
-              class="w-full flex justify-center rounded-md bg-gray-200 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-300"
-            >
-              Regenerate Credentials
-            </button>
+            <div class="flex space-x-3">
+              <button
+                @click="prevStep"
+                class="flex-1 rounded-md bg-gray-200 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-300"
+              >
+                Back
+              </button>
+              <button
+                @click="nextStep"
+                class="flex-1 rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500"
+              >
+                I've Setup 2FA - Continue
+              </button>
+            </div>
           </div>
         </div>
-              </div>
+
+        <!-- Step 3: Complete -->
+        <div v-if="step === 3" class="space-y-6">
+          <div class="text-center">
+            <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+              <svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+
+            <h3 class="text-lg font-medium text-gray-900 mb-4">Setup Complete!</h3>
+
+            <div class="bg-green-50 p-4 rounded-lg mb-6">
+              <p class="text-sm text-green-800">
+                Your COFRAP account is now ready. You can now sign in using:
+              </p>
+              <ul class="mt-2 text-sm text-green-700 space-y-1">
+                <li>• Username: <span class="font-medium">{{ qrData.username }}</span></li>
+                <li>• Your saved password</li>
+                <li>• 6-digit code from your authenticator app</li>
+              </ul>
+            </div>
+
+            <div class="space-y-3">
+              <button
+                @click="completeSetup"
+                class="w-full flex justify-center rounded-md bg-green-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-green-500"
+              >
+                Go to Login
+              </button>
+
+              <button
+                @click="regenerateCredentials"
+                class="w-full flex justify-center rounded-md bg-gray-200 px-3 py-1.5 text-sm font-semibold text-gray-700 hover:bg-gray-300"
+              >
+                Regenerate Credentials
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
