@@ -3,6 +3,7 @@ import { useRouter } from 'vue-router'
 import { ref } from 'vue'
 import { useToast } from 'vue-toast-notification'
 import 'vue-toast-notification/dist/theme-sugar.css'
+import { generatePassword, generate2FA } from '@/services/api'
 
 const router = useRouter()
 
@@ -44,78 +45,37 @@ const handleSubmit = async () => {
   isLoading.value = true
 
   try {
-    console.log('Creating account for:', user.value.username)
-
     // Étape 1: Générer le mot de passe
-    //const passwordResponse = await generatePassword(user.value.username)
+    toast.info('Génération du mot de passe...', {
+      position: 'top-right',
+      duration: 2000,
+    })
+
+    await generatePassword(user.value.username)
 
     // Étape 2: Générer le secret 2FA
-    //const totpResponse = await generate2FA(user.value.username)
+    toast.info('Génération du secret 2FA...', {
+      position: 'top-right',
+      duration: 2000,
+    })
 
-    //if (passwordResponse.success && totpResponse.success) {
-      successToast()
+    await generate2FA(user.value.username)
 
-      // Rediriger vers la page d'affichage des QR codes avec les données
-      router.push({
-        name: 'qr-setup',
-        //query: {
-        //   username: user.value.username,
-        //   passwordQR: passwordResponse.qrcode_base64,
-        //   totpQR: totpResponse.qrcode_base64
-        // }
-      })
-    //} else {
-      //throw new Error('Failed to generate credentials')
-    //}
+    successToast()
+
+    // Rediriger vers la page d'affichage des QR codes (qui les régénérera)
+    router.push({
+      name: 'qr-setup',
+      query: {
+        username: user.value.username
+      }
+    })
 
   } catch (error) {
     console.error('Error creating account:', error)
     errorToast('Failed to create account. Please try again.')
   } finally {
     isLoading.value = false
-  }
-}
-
-// Fonctions pour appeler les API OpenFaaS
-const generatePassword = async (username: string) => {
-  try {
-    const response = await fetch('/function/generate-password', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ username })
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    return await response.json()
-  } catch (error) {
-    console.error('Error generating password:', error)
-    throw error
-  }
-}
-
-const generate2FA = async (username: string) => {
-  try {
-    const response = await fetch('/function/generate-2fa', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ username })
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-
-    return await response.json()
-  } catch (error) {
-    console.error('Error generating 2FA:', error)
-    throw error
   }
 }
 </script>
