@@ -1,6 +1,6 @@
 const API_BASE_URL = import.meta.env.DEV ? '/function' : 'https://mspr-openfaas.hiboukstore.com/function'
 
-export const generatePassword = async (user) => {
+export const generatePassword = async (user: string) => {
   const response = await fetch(`${API_BASE_URL}/gen-password`, {
     method: 'POST',
     headers: {
@@ -45,7 +45,7 @@ export const generatePassword = async (user) => {
   }
 }
 
-export const generate2FA = async (user) => {
+export const generate2FA = async (user: string) => {
   const response = await fetch(`${API_BASE_URL}/generate2fa`, {
     method: 'POST',
     headers: {
@@ -90,7 +90,7 @@ export const generate2FA = async (user) => {
   }
 }
 
-export const authenticateUser = async (username, password, otp) => {
+export const authenticateUser = async (username: string, password: string, otp: string) => {
   const response = await fetch(`${API_BASE_URL}/authuser`, {
     method: 'POST',
     headers: {
