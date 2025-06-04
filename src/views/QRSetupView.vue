@@ -51,15 +51,9 @@ onMounted(async () => {
       generate2FA(username)
     ])
 
-    console.log('Password response:', passwordResponse)
-    console.log('TOTP response:', totpResponse)
-
     // Accès direct aux propriétés pour debug
     const passwordQRCode = passwordResponse?.qrcode_base64
     const totpQRCode = totpResponse?.qrcode_base64
-
-    console.log('Direct access - passwordQRCode:', passwordQRCode?.substring(0, 50))
-    console.log('Direct access - totpQRCode:', totpQRCode?.substring(0, 50))
 
     qrData.value = {
       username,
@@ -68,13 +62,6 @@ onMounted(async () => {
       generatedPassword: passwordResponse?.password || passwordResponse?.secret || 'Generated password',
       isLoading: false
     }
-
-    console.log('Final QR data assigned:', {
-      passwordQR: qrData.value.passwordQR?.substring(0, 50) + '...',
-      totpQR: qrData.value.totpQR?.substring(0, 50) + '...',
-      hasPasswordQR: !!qrData.value.passwordQR,
-      hasTotpQR: !!qrData.value.totpQR
-    })
 
     toast.success('QR codes générés avec succès!', {
       position: 'top-right',

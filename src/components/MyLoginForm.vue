@@ -36,7 +36,6 @@ const handleTotpUpdate = (code: string) => {
 
 const handleTotpComplete = (code: string) => {
   user.value.totpCode = code
-  console.log('Code TOTP complet:', code)
 }
 
 const handleSubmit = async () => {
@@ -51,15 +50,12 @@ const handleSubmit = async () => {
   isLoading.value = true
 
   try {
-    console.log('Tentative de connexion avec:', user.value.email)
 
     const response = await authenticateUser(
       user.value.email,
       user.value.password,
       user.value.totpCode
     )
-
-    console.log('Réponse authentification:', response)
 
     // Adapter selon le format de votre réponse JSON
     if (response.success || response.message?.includes('success')) {

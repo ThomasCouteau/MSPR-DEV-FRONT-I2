@@ -45,16 +45,13 @@ const handleSubmit = async () => {
   isLoading.value = true
 
   try {
-    console.log('Creating account for:', user.value.username)
-
     // Étape 1: Générer le mot de passe
     toast.info('Génération du mot de passe...', {
       position: 'top-right',
       duration: 2000,
     })
 
-    const passwordResponse = await generatePassword(user.value.username)
-    console.log('Password response:', passwordResponse)
+    await generatePassword(user.value.username)
 
     // Étape 2: Générer le secret 2FA
     toast.info('Génération du secret 2FA...', {
@@ -62,8 +59,7 @@ const handleSubmit = async () => {
       duration: 2000,
     })
 
-    const totpResponse = await generate2FA(user.value.username)
-    console.log('TOTP response:', totpResponse)
+    await generate2FA(user.value.username)
 
     successToast()
 

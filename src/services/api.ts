@@ -14,7 +14,6 @@ export const generatePassword = async (user) => {
   }
 
   const responseText = await response.text()
-  console.log('Raw password response:', responseText.substring(0, 200))
 
   // Essayer de parser comme JSON d'abord
   try {
@@ -60,7 +59,6 @@ export const generate2FA = async (user) => {
   }
 
   const responseText = await response.text()
-  console.log('Raw 2FA response:', responseText.substring(0, 200))
 
   // Essayer de parser comme JSON d'abord
   try {
@@ -110,7 +108,6 @@ export const authenticateUser = async (username, password, otp) => {
   }
 
   const responseText = await response.text()
-  console.log('Raw auth response:', responseText)
 
   // Essayer de parser comme JSON
   try {

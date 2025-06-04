@@ -41,8 +41,6 @@ const handleSubmit = async () => {
   isLoading.value = true
 
   try {
-    console.log('Renewing credentials for:', user.value.username)
-
     // Étape 1: Générer un nouveau mot de passe
     toast.info('Génération d\'un nouveau mot de passe...', {
       position: 'top-right',
@@ -50,7 +48,6 @@ const handleSubmit = async () => {
     })
 
     const passwordResponse = await generatePassword(user.value.username)
-    console.log('Password response:', passwordResponse)
 
     // Étape 2: Générer un nouveau secret 2FA
     toast.info('Génération d\'un nouveau secret 2FA...', {
@@ -59,7 +56,6 @@ const handleSubmit = async () => {
     })
 
     const totpResponse = await generate2FA(user.value.username)
-    console.log('TOTP response:', totpResponse)
 
     toast.success('Credentials renewed successfully! Please scan your new QR codes.', {
       position: 'top-right',
