@@ -2,7 +2,7 @@
 import { useRoute, useRouter } from 'vue-router'
 import { ref, onMounted } from 'vue'
 import { useToast } from 'vue-toast-notification'
-import { apiService } from '@/services/api'
+import { generatePassword, generate2FA } from '@/services/api'
 
 const route = useRoute()
 const router = useRouter()
@@ -22,9 +22,6 @@ const step = ref(1) // 1: Password QR, 2: 2FA QR, 3: Instructions
 onMounted(async () => {
   try {
     const username = (route.query.username as string) || ''
-    const passwordQR = route.query.passwordQR as string
-    const totpQR = route.query.totpQR as string
-    const password = route.query.password as string
     const isRenewal = route.query.renewed === 'true'
 
     if (!username) {
@@ -43,49 +40,46 @@ onMounted(async () => {
       })
     }
 
-    // Si nous avons les QR codes des query params, les utiliser directement
-    if (passwordQR && totpQR) {
-      qrData.value = {
-        username,
-        passwordQR,
-        totpQR,
-        generatedPassword: password || 'Mot de passe généré (voir QR code)',
-        isLoading: false
-      }
+    // Générer les QR codes
+    toast.info('Génération des QR codes...', {
+      position: 'top-right',
+      duration: 2000,
+    })
 
-      toast.success('QR codes générés avec succès!', {
-        position: 'top-right',
-        duration: 3000,
-      })
-    } else {
-      // Sinon, générer de nouveaux QR codes
-      toast.info('Génération des QR codes...', {
-        position: 'top-right',
-        duration: 2000,
-      })
+    const [passwordResponse, totpResponse] = await Promise.all([
+      generatePassword(username),
+      generate2FA(username)
+    ])
 
-      const [passwordResponse, totpResponse] = await Promise.all([
-        apiService.generatePassword(username),
-        apiService.generate2FA(username)
-      ])
+    console.log('Password response:', passwordResponse)
+    console.log('TOTP response:', totpResponse)
 
-      if (!passwordResponse.success || !totpResponse.success) {
-        throw new Error('Erreur lors de la génération des QR codes')
-      }
+    // Accès direct aux propriétés pour debug
+    const passwordQRCode = passwordResponse?.qrcode_base64
+    const totpQRCode = totpResponse?.qrcode_base64
 
-      qrData.value = {
-        username,
-        passwordQR: passwordResponse.qrcode_base64,
-        totpQR: totpResponse.qrcode_base64,
-        generatedPassword: passwordResponse.password,
-        isLoading: false
-      }
+    console.log('Direct access - passwordQRCode:', passwordQRCode?.substring(0, 50))
+    console.log('Direct access - totpQRCode:', totpQRCode?.substring(0, 50))
 
-      toast.success('QR codes générés avec succès!', {
-        position: 'top-right',
-        duration: 3000,
-      })
+    qrData.value = {
+      username,
+      passwordQR: passwordQRCode,
+      totpQR: totpQRCode,
+      generatedPassword: passwordResponse?.password || passwordResponse?.secret || 'Generated password',
+      isLoading: false
     }
+
+    console.log('Final QR data assigned:', {
+      passwordQR: qrData.value.passwordQR?.substring(0, 50) + '...',
+      totpQR: qrData.value.totpQR?.substring(0, 50) + '...',
+      hasPasswordQR: !!qrData.value.passwordQR,
+      hasTotpQR: !!qrData.value.totpQR
+    })
+
+    toast.success('QR codes générés avec succès!', {
+      position: 'top-right',
+      duration: 3000,
+    })
 
   } catch (error) {
     console.error('Erreur lors de l\'initialisation:', error)
@@ -128,17 +122,13 @@ const regenerateCredentials = async () => {
 
     // Générer de nouveaux QR codes via l'API
     const [passwordResponse, totpResponse] = await Promise.all([
-      apiService.generatePassword(qrData.value.username),
-      apiService.generate2FA(qrData.value.username)
+      generatePassword(qrData.value.username),
+      generate2FA(qrData.value.username)
     ])
-
-    if (!passwordResponse.success || !totpResponse.success) {
-      throw new Error('Erreur lors de la génération des QR codes')
-    }
 
     qrData.value.passwordQR = passwordResponse.qrcode_base64
     qrData.value.totpQR = totpResponse.qrcode_base64
-    qrData.value.generatedPassword = passwordResponse.password
+    qrData.value.generatedPassword = passwordResponse.password || 'Generated password'
     qrData.value.isLoading = false
 
     // Reset à l'étape 1
@@ -217,11 +207,12 @@ const regenerateCredentials = async () => {
                 :src="qrData.passwordQR"
                 alt="Password QR Code"
                 class="mx-auto w-48 h-48 bg-gray-100 rounded"
+                @error="console.error('Error loading password QR image:', qrData.passwordQR)"
               />
               <p class="mt-2 text-sm text-gray-500">Scan this QR code to save your password</p>
             </div>
 
-            <!-- Generated Password (optional display) -->
+            <!-- Generated Password (display) -->
             <div class="bg-gray-50 p-4 rounded-lg mb-6">
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium text-gray-700">Generated Password:</span>
@@ -257,6 +248,7 @@ const regenerateCredentials = async () => {
                 :src="qrData.totpQR"
                 alt="2FA QR Code"
                 class="mx-auto w-48 h-48 bg-gray-100 rounded"
+                @error="console.error('Error loading 2FA QR image:', qrData.totpQR)"
               />
               <p class="mt-2 text-sm text-gray-500">Scan with Google Authenticator or similar app</p>
             </div>

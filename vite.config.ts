@@ -18,11 +18,10 @@ export default defineConfig({
   },
   server: {
     proxy: {
-      '/api': {
-        target: 'https://mspr-openfaas.hiboukstore.com/function',
+      '/function': {
+        target: 'https://mspr-openfaas.hiboukstore.com',
         changeOrigin: true,
-        secure: true,
-        rewrite: (path) => path.replace(/^\/api/, '')
+        secure: false,
       }
     }
   }

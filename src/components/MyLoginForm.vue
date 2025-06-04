@@ -4,7 +4,7 @@ import { computed, ref } from 'vue'
 import { useToast } from 'vue-toast-notification'
 import 'vue-toast-notification/dist/theme-sugar.css'
 import TotpCode from '@/components/TotpCode.vue'
-import { apiService } from '@/services/api'
+import { authenticateUser } from '@/services/api'
 
 const router = useRouter()
 
@@ -53,28 +53,31 @@ const handleSubmit = async () => {
   try {
     console.log('Tentative de connexion avec:', user.value.email)
 
-    const response = await apiService.authenticateUser(
+    const response = await authenticateUser(
       user.value.email,
       user.value.password,
       user.value.totpCode
     )
 
-    if (response.success) {
+    console.log('Réponse authentification:', response)
+
+    // Adapter selon le format de votre réponse JSON
+    if (response.success || response.message?.includes('success')) {
       successToast()
       router.push('/dashboard')
     } else {
-      if (response.expired) {
-        toast.error(response.message, {
+      // Vérifier si les identifiants ont expiré
+      if (response.message?.includes('expired')) {
+        toast.error('Vos identifiants ont expiré. Veuillez les renouveler.', {
           position: 'top-right',
           duration: 5000,
         })
-        // Rediriger vers la page de renouvellement
         router.push({
           name: 'renew',
           query: { username: user.value.email }
         })
       } else {
-        toast.error(response.message, {
+        toast.error(response.message || 'Erreur d\'authentification', {
           position: 'top-right',
           duration: 4000,
         })

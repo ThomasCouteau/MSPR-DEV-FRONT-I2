@@ -1,144 +1,124 @@
-const API_BASE_URL = import.meta.env.DEV ? '/api' : 'https://mspr-openfaas.hiboukstore.com/function'
+const API_BASE_URL = import.meta.env.DEV ? '/function' : 'https://mspr-openfaas.hiboukstore.com/function'
 
-export interface User {
-  username: string
-  password: string
-  otp: string
-}
+export const generatePassword = async (user) => {
+  const response = await fetch(`${API_BASE_URL}/gen-password`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ username: user })
+  });
 
-export interface ApiResponse {
-  success: boolean
-  message?: string
-  data?: any
-  qrcode?: string
-}
-
-export interface GeneratePasswordResponse {
-  success: boolean
-  qrcode_base64: string
-  password: string
-}
-
-export interface Generate2FAResponse {
-  success: boolean
-  qrcode_base64: string
-  secret: string
-}
-
-export interface AuthResponse {
-  success: boolean
-  message: string
-  expired?: boolean
-}
-
-class ApiService {
-  private async makeRequest(endpoint: string, data: any): Promise<any> {
-    try {
-      const response = await fetch(`${API_BASE_URL}/${endpoint}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'origin': 'http://82.66.185.206:16651'
-        },
-        body: JSON.stringify(data)
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const responseText = await response.text()
-
-      // Vérifier si la réponse est une image base64 (QR code)
-      if (responseText.startsWith('iVBORw0KGgo') || responseText.startsWith('data:image')) {
-        return {
-          success: true,
-          qrcode_base64: responseText.startsWith('data:') ? responseText : `data:image/png;base64,${responseText}`
-        }
-      }
-
-      // Essayer de parser comme JSON
-      try {
-        return JSON.parse(responseText)
-      } catch {
-        // Si ce n'est pas du JSON, retourner le texte brut
-        return {
-          success: responseText !== 'Missing credentials',
-          message: responseText,
-          data: responseText
-        }
-      }
-
-    } catch (error) {
-      console.error(`Error calling ${endpoint}:`, error)
-      throw error
-    }
+  if (!response.ok) {
+    throw new Error("Erreur lors de la génération du mot de passe")
   }
 
-  /**
-   * Génère un mot de passe sécurisé et retourne un QR code
-   */
-  async generatePassword(username: string): Promise<GeneratePasswordResponse> {
-    const response = await this.makeRequest('gen-password', { username })
+  const responseText = await response.text()
+  console.log('Raw password response:', responseText.substring(0, 200))
 
-    return {
-      success: response.success || (response.qrcode_base64 ? true : false),
-      qrcode_base64: response.qrcode_base64,
-      password: response.password || 'Generated password (see QR code)'
+  // Essayer de parser comme JSON d'abord
+  try {
+    const jsonResponse = JSON.parse(responseText)
+
+    // Normaliser la réponse pour avoir toujours qrcode_base64
+    if (jsonResponse.qrcode && !jsonResponse.qrcode_base64) {
+      // Si on a qrcode mais pas qrcode_base64, formatter correctement
+      const qrData = jsonResponse.qrcode.startsWith('data:')
+        ? jsonResponse.qrcode
+        : `data:image/png;base64,${jsonResponse.qrcode}`
+
+      return {
+        ...jsonResponse,
+        qrcode_base64: qrData
+      }
     }
+
+    return jsonResponse
+  } catch {
+    // Si c'est du base64 direct
+    if (responseText.startsWith('iVBORw0KGgo')) {
+      return {
+        qrcode_base64: `data:image/png;base64,${responseText}`,
+        password: 'Generated password'
+      }
+    }
+    return { message: responseText }
+  }
+}
+
+export const generate2FA = async (user) => {
+  const response = await fetch(`${API_BASE_URL}/generate2fa`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ username: user })
+  });
+
+  if (!response.ok) {
+    throw new Error("Erreur lors de la génération 2FA")
   }
 
-  /**
-   * Génère un secret 2FA et retourne un QR code
-   */
-  async generate2FA(username: string): Promise<Generate2FAResponse> {
-    const response = await this.makeRequest('generate2fa', { username })
+  const responseText = await response.text()
+  console.log('Raw 2FA response:', responseText.substring(0, 200))
 
-    return {
-      success: response.success,
-      qrcode_base64: response.qrcode_base64,
-      secret: response.secret || 'Generated 2FA secret (see QR code)'
+  // Essayer de parser comme JSON d'abord
+  try {
+    const jsonResponse = JSON.parse(responseText)
+
+    // Normaliser la réponse pour avoir toujours qrcode_base64
+    if (jsonResponse.qrcode && !jsonResponse.qrcode_base64) {
+      // Si on a qrcode mais pas qrcode_base64, formatter correctement
+      const qrData = jsonResponse.qrcode.startsWith('data:')
+        ? jsonResponse.qrcode
+        : `data:image/png;base64,${jsonResponse.qrcode}`
+
+      return {
+        ...jsonResponse,
+        qrcode_base64: qrData
+      }
     }
-  }
 
-  /**
-   * Authentifie un utilisateur avec username, password et code OTP
-   */
-  async authenticateUser(username: string, password: string, otp: string): Promise<AuthResponse> {
-    const response = await this.makeRequest('authuser', {
+    return jsonResponse
+  } catch {
+    // Si c'est du base64 direct
+    if (responseText.startsWith('iVBORw0KGgo')) {
+      return {
+        qrcode_base64: `data:image/png;base64,${responseText}`,
+        secret: 'Generated 2FA secret'
+      }
+    }
+    return { message: responseText }
+  }
+}
+
+export const authenticateUser = async (username, password, otp) => {
+  const response = await fetch(`${API_BASE_URL}/authuser`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
       username,
       password,
       otp
     })
+  });
 
-    // Gérer les différents cas de réponse
-    if (response.message === 'Missing credentials') {
-      return {
-        success: false,
-        message: 'Veuillez fournir tous les identifiants requis'
-      }
-    }
+  if (!response.ok) {
+    throw new Error("Erreur lors de l'authentification")
+  }
 
-    if (response.message && response.message.includes('expired')) {
-      return {
-        success: false,
-        message: 'Vos identifiants ont expiré. Veuillez les renouveler.',
-        expired: true
-      }
-    }
+  const responseText = await response.text()
+  console.log('Raw auth response:', responseText)
 
-    if (response.message && response.message.includes('success')) {
-      return {
-        success: true,
-        message: 'Authentification réussie'
-      }
-    }
-
+  // Essayer de parser comme JSON
+  try {
+    return JSON.parse(responseText)
+  } catch {
     return {
-      success: response.success || false,
-      message: response.message || 'Erreur d\'authentification'
+      success: !responseText.includes('Missing credentials') && !responseText.includes('error'),
+      message: responseText
     }
   }
 }
-
-export const apiService = new ApiService()

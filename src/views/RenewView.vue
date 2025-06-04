@@ -2,7 +2,7 @@
 import { useRouter, useRoute } from 'vue-router'
 import { ref, onMounted } from 'vue'
 import { useToast } from 'vue-toast-notification'
-import { apiService } from '@/services/api'
+import { generatePassword, generate2FA } from '@/services/api'
 
 const router = useRouter()
 const route = useRoute()
@@ -49,11 +49,8 @@ const handleSubmit = async () => {
       duration: 2000,
     })
 
-    const passwordResponse = await apiService.generatePassword(user.value.username)
-
-    if (!passwordResponse.success) {
-      throw new Error('Failed to generate password')
-    }
+    const passwordResponse = await generatePassword(user.value.username)
+    console.log('Password response:', passwordResponse)
 
     // Étape 2: Générer un nouveau secret 2FA
     toast.info('Génération d\'un nouveau secret 2FA...', {
@@ -61,11 +58,8 @@ const handleSubmit = async () => {
       duration: 2000,
     })
 
-    const totpResponse = await apiService.generate2FA(user.value.username)
-
-    if (!totpResponse.success) {
-      throw new Error('Failed to generate 2FA')
-    }
+    const totpResponse = await generate2FA(user.value.username)
+    console.log('TOTP response:', totpResponse)
 
     toast.success('Credentials renewed successfully! Please scan your new QR codes.', {
       position: 'top-right',
@@ -77,9 +71,9 @@ const handleSubmit = async () => {
       name: 'qr-setup',
       query: {
         username: user.value.username,
-        passwordQR: passwordResponse.qrcode_base64,
-        totpQR: totpResponse.qrcode_base64,
-        password: passwordResponse.password,
+        passwordQR: passwordResponse.qrcode_base64 || passwordResponse.qrcode,
+        totpQR: totpResponse.qrcode_base64 || totpResponse.qrcode,
+        password: passwordResponse.password || 'Generated password',
         renewed: 'true'
       }
     })
