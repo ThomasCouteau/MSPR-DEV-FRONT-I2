@@ -199,22 +199,6 @@ const regenerateCredentials = async () => {
               <p class="mt-2 text-sm text-gray-500">Scan this QR code to save your password</p>
             </div>
 
-            <!-- Generated Password (display) -->
-            <div class="bg-gray-50 p-4 rounded-lg mb-6">
-              <div class="flex items-center justify-between">
-                <span class="text-sm font-medium text-gray-700">Generated Password:</span>
-                <button
-                  @click="showPassword = !showPassword"
-                  class="text-sm text-indigo-600 hover:text-indigo-500"
-                >
-                  {{ showPassword ? 'Hide' : 'Show' }}
-                </button>
-              </div>
-              <div class="mt-2 font-mono text-sm break-all">
-                {{ showPassword ? qrData.generatedPassword : '••••••••••••••••••••••••' }}
-              </div>
-            </div>
-
             <button
               @click="nextStep"
               class="w-full flex justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-indigo-500"
