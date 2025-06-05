@@ -16,7 +16,6 @@ const qrData = ref({
   isLoading: true
 })
 
-const showPassword = ref(false)
 const step = ref(1) // 1: Password QR, 2: 2FA QR, 3: Instructions
 
 onMounted(async () => {
