@@ -19,7 +19,7 @@ export default defineConfig({
   server: {
     proxy: {
       '/function': {
-        target: 'https://mspr-openfaas.hiboukstore.com',
+        target: 'http://82.66.185.206:16651',
         changeOrigin: true,
         secure: false,
       }

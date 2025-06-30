@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.DEV ? '/function' : 'https://mspr-openfaas.hiboukstore.com/function'
+const API_BASE_URL = import.meta.env.DEV ? '/function' : 'http://82.66.185.206:16651/function'
 
 export const generatePassword = async (user: string) => {
   const response = await fetch(`${API_BASE_URL}/gen-password`, {
