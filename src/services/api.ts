@@ -1,6 +1,9 @@
-const API_BASE_URL = '/function'  // Utilise le proxy nginx local
+// Utilisez UNIQUEMENT le proxy local - pas d'URL externe
+const API_BASE_URL = '/function'
 
 export const generatePassword = async (user: string) => {
+  console.log('Making request to:', `${API_BASE_URL}/gen-password`);
+  
   const response = await fetch(`${API_BASE_URL}/gen-password`, {
     method: 'POST',
     headers: {
@@ -9,29 +12,16 @@ export const generatePassword = async (user: string) => {
     body: JSON.stringify({ username: user })
   });
 
+  console.log('Response status:', response.status);
+
   if (!response.ok) {
     throw new Error("Erreur lors de la génération du mot de passe")
   }
 
   const responseText = await response.text()
 
-  // Essayer de parser comme JSON d'abord
   try {
     const jsonResponse = JSON.parse(responseText)
-
-    // Normaliser la réponse pour avoir toujours qrcode_base64
-    if (jsonResponse.qrcode && !jsonResponse.qrcode_base64) {
-      // Si on a qrcode mais pas qrcode_base64, formatter correctement
-      const qrData = jsonResponse.qrcode.startsWith('data:')
-        ? jsonResponse.qrcode
-        : `data:image/png;base64,${jsonResponse.qrcode}`
-
-      return {
-        ...jsonResponse,
-        qrcode_base64: qrData
-      }
-    }
-
     return jsonResponse
   } catch {
     // Si c'est du base64 direct
@@ -60,26 +50,10 @@ export const generate2FA = async (user: string) => {
 
   const responseText = await response.text()
 
-  // Essayer de parser comme JSON d'abord
   try {
     const jsonResponse = JSON.parse(responseText)
-
-    // Normaliser la réponse pour avoir toujours qrcode_base64
-    if (jsonResponse.qrcode && !jsonResponse.qrcode_base64) {
-      // Si on a qrcode mais pas qrcode_base64, formatter correctement
-      const qrData = jsonResponse.qrcode.startsWith('data:')
-        ? jsonResponse.qrcode
-        : `data:image/png;base64,${jsonResponse.qrcode}`
-
-      return {
-        ...jsonResponse,
-        qrcode_base64: qrData
-      }
-    }
-
     return jsonResponse
   } catch {
-    // Si c'est du base64 direct
     if (responseText.startsWith('iVBORw0KGgo')) {
       return {
         qrcode_base64: `data:image/png;base64,${responseText}`,
@@ -109,7 +83,6 @@ export const authenticateUser = async (username: string, password: string, otp: 
 
   const responseText = await response.text()
 
-  // Essayer de parser comme JSON
   try {
     return JSON.parse(responseText)
   } catch {
