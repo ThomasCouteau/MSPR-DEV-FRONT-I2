@@ -1,4 +1,4 @@
-const API_BASE_URL = import.meta.env.DEV ? '/function' : 'http://82.66.185.206:16651/function'
+const API_BASE_URL = '/function'  // Utilise le proxy nginx local
 
 export const generatePassword = async (user: string) => {
   const response = await fetch(`${API_BASE_URL}/gen-password`, {
